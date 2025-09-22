@@ -12,7 +12,7 @@ fn main() {
     println!("Server listening on port 7878");
     println!("http://127.0.0.1:7878");
 
-    let pool = ThreadPool::new(4);
+    let pool = ThreadPool::new(20);
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
