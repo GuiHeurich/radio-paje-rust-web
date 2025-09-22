@@ -89,3 +89,33 @@ impl Worker {
         Worker { id, thread }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+    use std::time::Duration;
+
+    #[test]
+    fn thread_pool_new_panics_on_zero() {
+        let result = std::panic::catch_unwind(|| {
+            ThreadPool::new(0);
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn thread_pool_executes_jobs() {
+        let pool = ThreadPool::new(2);
+        let counter = Arc::new(Mutex::new(0));
+        let counter_clone = Arc::clone(&counter);
+        pool.execute(move || {
+            let mut num = counter_clone.lock().unwrap();
+            *num += 1;
+        });
+        // Give some time for the thread to execute
+        thread::sleep(Duration::from_millis(50));
+        assert_eq!(*counter.lock().unwrap(), 1);
+    }
+}
