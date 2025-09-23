@@ -47,18 +47,15 @@ fn handle_connection(mut stream: TcpStream) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
     use std::thread;
-    use std::fs;
-
-    fn setup_test_file(name: &str, contents: &str) {
-        fs::write(name, contents).unwrap();
-    }
 
     #[test]
     fn handle_connection_renders_hello_html() {
-        setup_test_file("test_data/hello_test.html", "Hello, world!");
+        let expected = fs::read_to_string("test_data/hello_test.html").unwrap();
+
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
         thread::spawn(move || {
@@ -69,13 +66,15 @@ mod tests {
         stream.write_all(b"GET / HTTP/1.1\r\n\r\n").unwrap();
         let mut buffer = String::new();
         stream.read_to_string(&mut buffer).unwrap();
+
         assert!(buffer.contains("HTTP/1.1 200 OK"));
-        assert!(buffer.contains("Hello, world!"));
+        assert!(buffer.contains(&expected));
     }
 
     #[test]
     fn handle_connection_returns_404_for_other_paths() {
-        setup_test_file("test_data/hello_404.html", "Not Found");
+        let expected = fs::read_to_string("test_data/hello_404.html").unwrap();
+
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
         thread::spawn(move || {
@@ -83,10 +82,12 @@ mod tests {
             handle_connection(stream);
         });
         let mut stream = TcpStream::connect(addr).unwrap();
-        stream.write_all(b"GET /doesnotexist HTTP/1.1\r\n\r\n").unwrap();
+        stream
+            .write_all(b"GET /doesnotexist HTTP/1.1\r\n\r\n")
+            .unwrap();
         let mut buffer = String::new();
         stream.read_to_string(&mut buffer).unwrap();
         assert!(buffer.contains("HTTP/1.1 404 NOT FOUND"));
-        assert!(buffer.contains("Not Found"));
+        assert!(buffer.contains(&expected));
     }
 }
