@@ -1,16 +1,19 @@
 use radio_paje_rust_web::ThreadPool;
 use std::{
+    env,
     fs,
     io::{BufReader, prelude::*},
-    net::{TcpListener, TcpStream},
-    thread,
-    time::Duration,
+    net::{TcpListener, TcpStream}
 };
-fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
-    println!("Server listening on port 7878");
-    println!("http://127.0.0.1:7878");
+fn main() {
+    let port = env::var("PORT").unwrap_or_else(|_| "7878".to_string());
+    let addr = format!("127.0.0.1:{}", port);
+
+    let listener = TcpListener::bind(&addr).unwrap();
+
+    println!("Server listening on port {}", port);
+    println!("http://{}", addr);
 
     let pool = ThreadPool::new(20);
 
@@ -25,14 +28,17 @@ fn main() {
 
 fn handle_connection(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&stream);
-    let request_line = buf_reader.lines().next().unwrap().unwrap();
+    let request_line = match buf_reader.lines().next() {
+        Some(Ok(line)) => line,
+        _ => {
+            // Add logging here, in the future;
+            return;
+        }
+    };
 
     let (status_line, filename) = match &request_line[..] {
-        "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
-        "GET /sleep HTTP/1.1" => {
-            thread::sleep(Duration::from_secs(5));
-            ("HTTP/1.1 200 OK", "hello.html")
-        }
+        "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "home.html"),
+        "GET /hello HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
         _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
     };
 
@@ -53,8 +59,8 @@ mod tests {
     use std::thread;
 
     #[test]
-    fn handle_connection_renders_hello_html() {
-        let expected = fs::read_to_string("test_data/hello_test.html").unwrap();
+    fn handle_connection_renders_home_html() {
+        let expected = fs::read_to_string("test_data/home_test.html").unwrap();
 
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
@@ -72,8 +78,27 @@ mod tests {
     }
 
     #[test]
+    fn handle_connection_renders_hello_html() {
+        let expected = fs::read_to_string("test_data/hello_test.html").unwrap();
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            handle_connection(stream);
+        });
+        let mut stream = TcpStream::connect(addr).unwrap();
+        stream.write_all(b"GET /hello HTTP/1.1\r\n\r\n").unwrap();
+        let mut buffer = String::new();
+        stream.read_to_string(&mut buffer).unwrap();
+
+        assert!(buffer.contains("HTTP/1.1 200 OK"));
+        assert!(buffer.contains(&expected));
+    }
+
+    #[test]
     fn handle_connection_returns_404_for_other_paths() {
-        let expected = fs::read_to_string("test_data/hello_404.html").unwrap();
+        let expected = fs::read_to_string("test_data/hello_404_test.html").unwrap();
 
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
