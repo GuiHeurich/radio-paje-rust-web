@@ -1,45 +1,47 @@
-use radio_paje_rust_web::ThreadPool;
 use std::{
-    fs,
-    io::{BufReader, prelude::*},
-    net::{TcpListener, TcpStream},
-    thread,
-    time::Duration,
+    collections::HashMap,
 };
-fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+use actix_web::{web, App, HttpServer, Responder};
+use askama::Template;
 
-    println!("Server listening on port 7878");
-    println!("http://127.0.0.1:7878");
+#[derive(Template)]
+#[template(path = "index.html")]
+struct Index;
 
-    let pool = ThreadPool::new(20);
+async fn index(_query: web::Query<HashMap<String, String>>) -> Result<impl Responder, actix_web::Error> {
+    let html = Index.render().expect("template should be valid");
 
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-
-        pool.execute(|| {
-            handle_connection(stream);
-        });
-    }
+    Ok(web::Html::new(html))
 }
 
-fn handle_connection(mut stream: TcpStream) {
-    let buf_reader = BufReader::new(&stream);
-    let request_line = buf_reader.lines().next().unwrap().unwrap();
+#[actix_web::main] // or #[tokio::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new()
+            .service(web::resource("/").route(web::get().to(index)))
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
+}
 
-    let (status_line, filename) = match &request_line[..] {
-        "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
-        "GET /sleep HTTP/1.1" => {
-            thread::sleep(Duration::from_secs(5));
-            ("HTTP/1.1 200 OK", "hello.html")
-        }
-        _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
-    };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, web, App};
 
-    let contents = fs::read_to_string(filename).unwrap();
-    let length = contents.len();
+    #[actix_web::test]
+    async fn test_index_returns_html() {
+        let mut app = test::init_service(
+            App::new().service(web::resource("/").route(web::get().to(index)))
+        ).await;
 
-    let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+        let req = test::TestRequest::get().uri("/").to_request();
+        let resp = test::call_service(&mut app, req).await;
+        assert!(resp.status().is_success());
+        let body = test::read_body(resp).await;
 
-    stream.write_all(response.as_bytes()).unwrap();
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(body_str.contains("<html") || body_str.contains("<!DOCTYPE html"));
+    }
 }
