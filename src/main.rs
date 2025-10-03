@@ -1,6 +1,9 @@
+use actix_files::NamedFile;
 use actix_web::{App, Error, HttpRequest, HttpResponse, HttpServer, Responder, rt, web};
 use askama::Template;
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::str::FromStr;
 
 mod handler;
 
@@ -26,12 +29,19 @@ async fn echo_heartbeat_ws(req: HttpRequest, stream: web::Payload) -> Result<Htt
     Ok(res)
 }
 
+async fn stream_audio() -> Result<NamedFile, Error> {
+    let path: PathBuf = "./um.opus".into();
+    let file = NamedFile::open(path)?;
+    Ok(file.set_content_type(mime::Mime::from_str("audio/opus").unwrap()))
+}
+
 #[actix_web::main] // or #[tokio::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/echo").route(web::get().to(echo_heartbeat_ws)))
+            .service(web::resource("/stream").route(web::get().to(stream_audio)))
     })
     .bind(("127.0.0.1", 8080))?
     .run()

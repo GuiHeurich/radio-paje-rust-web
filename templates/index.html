@@ -339,13 +339,10 @@
                 <div class="top-card">
                     <div class="player-container">
                         <div class="audio-player-wrapper">
-                            <audio id="audio-player" controls></audio>
+                            <audio id="audio-player" controls>
+                                <source src="http://localhost:8080/stream" />
+                            </audio>
                         </div>
-                        <!-- <div>
-                  <a id="play-video" class="video-play-button" href="https://www.youtube.com/embed/hXAdt5w3sPQ"  data-toggle="modal" data-target="#savoybeachhotel">
-	                  <span></span>
-                  </a>
-                </div> -->
                     </div>
                 </div>
             </div>
@@ -430,6 +427,18 @@
                     ws.send(input.value);
                     input.value = "";
                 }
+            });
+
+            document.addEventListener("DOMContentLoaded", () => {
+                const player = document.getElementById("audio-player");
+
+                document.body.addEventListener("click", () => {
+                    if (player.paused) {
+                        player.play().catch((err) => {
+                            console.warn("Playback failed:", err);
+                        });
+                    }
+                });
             });
         </script>
     </body>
