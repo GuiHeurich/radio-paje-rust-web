@@ -2,8 +2,10 @@ use actix_files::NamedFile;
 use actix_web::{App, Error, HttpRequest, HttpResponse, HttpServer, Responder, rt, web};
 use askama::Template;
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
+use tempfile::NamedTempFile;
 
 mod handler;
 
@@ -30,8 +32,22 @@ async fn echo_heartbeat_ws(req: HttpRequest, stream: web::Payload) -> Result<Htt
 }
 
 async fn stream_audio() -> Result<NamedFile, Error> {
-    let path: PathBuf = "./um.opus".into();
-    let file = NamedFile::open(path)?;
+    let url = "https://f005.backblazeb2.com/file/radio-paje-music/um.opus";
+    let response = reqwest::get(url)
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    let mut temp_file = NamedTempFile::new().map_err(actix_web::error::ErrorInternalServerError)?;
+    temp_file
+        .write_all(&bytes)
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    let file_path: PathBuf = temp_file.path().to_path_buf();
+    let file = NamedFile::open(file_path)?;
     Ok(file.set_content_type(mime::Mime::from_str("audio/opus").unwrap()))
 }
 
