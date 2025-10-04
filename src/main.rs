@@ -1,13 +1,16 @@
 use actix_files::NamedFile;
 use actix_web::{App, Error, HttpRequest, HttpResponse, HttpServer, Responder, rt, web};
 use askama::Template;
+use mime_guess::from_path;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 use tempfile::NamedTempFile;
 
+mod auth;
 mod handler;
+mod listing;
 
 #[derive(Template)]
 #[template(path = "index.html")]
@@ -32,27 +35,72 @@ async fn echo_heartbeat_ws(req: HttpRequest, stream: web::Payload) -> Result<Htt
 }
 
 async fn stream_audio() -> Result<NamedFile, Error> {
-    let url = "https://f005.backblazeb2.com/file/radio-paje-music/um.opus";
-    let response = reqwest::get(url)
+    log::info!("Streaming audio");
+
+    let bucket_id = std::env::var("B2_BUCKET_ID").map_err(|e| {
+        log::error!("Missing B2_BUCKET_ID: {}", e);
+        actix_web::error::ErrorInternalServerError("Missing B2_BUCKET_ID")
+    })?;
+
+    log::info!("Fetched bucket {}", bucket_id);
+
+    let auth = auth::authenticate().await.map_err(|e| {
+        log::error!("Authentication failed: {}", e);
+        actix_web::error::ErrorInternalServerError("Auth failed")
+    })?;
+
+    let file_name = listing::select_random_file(&auth, &bucket_id)
         .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
-    let bytes = response
+        .map_err(|e| {
+            log::error!("Failed to select random file: {}", e);
+            actix_web::error::ErrorInternalServerError("Failed to select random file")
+        })?;
+
+    log::info!("Fetched file {}", file_name);
+
+    let download_url = format!("{}/file/radio-paje-music/{}", auth.api_url, file_name);
+
+    log::info!("Downloading file from {}", download_url);
+
+    let bytes = reqwest::Client::new()
+        .get(&download_url)
+        // .bearer_auth(&auth.authorization_token)
+        .send()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?
         .bytes()
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    log::info!("Downloaded {} bytes", bytes.len());
 
     let mut temp_file = NamedTempFile::new().map_err(actix_web::error::ErrorInternalServerError)?;
     temp_file
         .write_all(&bytes)
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
-    let file_path: PathBuf = temp_file.path().to_path_buf();
+    log::info!("Downloaded file to {}", temp_file.path().display());
+    log::info!(
+        "Downloaded file size: {}",
+        temp_file
+            .as_file()
+            .metadata()
+            .map_err(actix_web::error::ErrorInternalServerError)?
+            .len()
+    );
+
+    let file_path: PathBuf = temp_file.into_temp_path().keep().unwrap();
+    let mime_type = from_path(&file_path).first_or_octet_stream();
     let file = NamedFile::open(file_path)?;
-    Ok(file.set_content_type(mime::Mime::from_str("audio/opus").unwrap()))
+
+    Ok(file.set_content_type(mime_type))
 }
 
 #[actix_web::main] // or #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    env_logger::init();
+    log::info!("Starting server");
+
     HttpServer::new(|| {
         App::new()
             .service(web::resource("/").route(web::get().to(index)))
