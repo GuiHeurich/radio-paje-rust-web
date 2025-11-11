@@ -6,8 +6,9 @@ This is a Rust web application that serves as a radio station's web interface. I
 
 ## Next Steps
 
-- [ ] Point fly.io to this repository.
-- [ ] Create domain name (radio-paje.com.br)
-- [ ] Ensure LLMs can't download any content.
-- [ ] Improve tests.
-- [ ] Design logo and create favicon.
+- [ ] Point fly.io to this repository;
+- [ ] Create domain name (radio-paje.com.br);
+- [ ] Ensure LLMs can't download any content;
+- [ ] Improve tests;
+- [ ] Design logo and create favicon;
+- [ ] Handle 404s;
