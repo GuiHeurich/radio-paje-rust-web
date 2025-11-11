@@ -1,5 +1,3 @@
-// use aws_config::{BehaviorVersion, Region};
-// use aws_sdk_s3::{Client, Config};
 use rand::prelude::IndexedRandom;
 use reqwest::Client;
 use reqwest::header::AUTHORIZATION;

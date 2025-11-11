@@ -34,7 +34,6 @@ async fn index(
 async fn echo_heartbeat_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
     let (res, session, msg_stream) = actix_ws::handle(&req, stream)?;
 
-    // spawn websocket handler (and don't await it) so that the response is returned immediately
     rt::spawn(handler::echo_heartbeat_ws(session, msg_stream));
 
     Ok(res)
@@ -126,10 +125,8 @@ async fn stream_audio(
         log::info!("Using cached file at {}", file_path.display());
     }
 
-    // Detect MIME type from filename
     let mime_type = from_path(&file_name).first_or_octet_stream();
 
-    // Log the request details
     let range_header = req.headers().get("range");
     log::info!("Range header: {:?}", range_header);
     log::info!("File size: {} bytes", file_path.metadata()?.len());
