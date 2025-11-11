@@ -1,10 +1,5 @@
-# fly.toml app configuration file generated for radio-paje-rust-web on 2025-11-11T20:35:16Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
 app = 'radio-paje-rust-web'
-primary_region = 'iad'
+primary_region = 'gru'
 
 [build]
 
