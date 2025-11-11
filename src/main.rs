@@ -3,10 +3,8 @@ use actix_web::{App, Error, HttpRequest, HttpResponse, HttpServer, Responder, rt
 use askama::Template;
 use mime_guess::from_path;
 use std::collections::HashMap;
-use std::collections::VecDeque;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 
 mod auth;
 mod handler;
@@ -15,12 +13,6 @@ mod listing;
 #[derive(Template)]
 #[template(path = "index.html")]
 struct Index;
-
-#[derive(Clone, Debug)]
-struct PlaybackState {
-    is_playing: bool,
-    queue: VecDeque<String>,
-}
 
 async fn index(
     _query: web::Query<HashMap<String, String>>,
@@ -42,7 +34,6 @@ async fn echo_heartbeat_ws(req: HttpRequest, stream: web::Payload) -> Result<Htt
 async fn stream_audio(
     req: HttpRequest,
     query: web::Query<HashMap<String, String>>,
-    _playback: web::Data<Arc<Mutex<PlaybackState>>>,
 ) -> Result<HttpResponse, Error> {
     let bucket_id = std::env::var("B2_BUCKET_ID").map_err(|e| {
         log::error!("Missing B2_BUCKET_ID: {}", e);
@@ -144,14 +135,8 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     log::info!("Starting server");
 
-    let playback_state = Arc::new(Mutex::new(PlaybackState {
-        is_playing: false,
-        queue: VecDeque::new(),
-    }));
-
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(playback_state.clone()))
             .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/echo").route(web::get().to(echo_heartbeat_ws)))
             .service(web::resource("/stream").route(web::get().to(stream_audio)))
