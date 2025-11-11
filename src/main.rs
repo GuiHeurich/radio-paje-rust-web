@@ -1,5 +1,5 @@
 use actix_files::NamedFile;
-use actix_web::{App, Error, HttpRequest, HttpResponse, HttpServer, Responder, rt, web};
+use actix_web::{App, Error, HttpRequest, HttpResponse, HttpServer, Responder, web};
 use askama::Template;
 use mime_guess::from_path;
 use std::collections::HashMap;
@@ -7,7 +7,6 @@ use std::fs;
 use std::path::PathBuf;
 
 mod auth;
-mod handler;
 mod listing;
 
 #[derive(Template)]
@@ -20,15 +19,6 @@ async fn index(
     let html = Index.render().expect("template should be valid");
 
     Ok(web::Html::new(html))
-}
-
-/// Handshake and start WebSocket handler with heartbeats.
-async fn echo_heartbeat_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    let (res, session, msg_stream) = actix_ws::handle(&req, stream)?;
-
-    rt::spawn(handler::echo_heartbeat_ws(session, msg_stream));
-
-    Ok(res)
 }
 
 async fn stream_audio(
@@ -138,7 +128,6 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .service(web::resource("/").route(web::get().to(index)))
-            .service(web::resource("/echo").route(web::get().to(echo_heartbeat_ws)))
             .service(web::resource("/stream").route(web::get().to(stream_audio)))
     })
     .bind(("127.0.0.1", 8080))?
