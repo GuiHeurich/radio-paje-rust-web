@@ -3,443 +3,159 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>radio paje, oñiña-me'e</title>
+        <title>Radio Player</title>
         <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-
             body {
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    Oxygen, Ubuntu, sans-serif;
-                background: linear-gradient(135deg, #730405 0%, #eb2055 100%);
+                font-family: Arial, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
                 min-height: 100vh;
-                padding: 20px;
-                overflow-x: auto;
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             }
 
-            .container {
-                max-width: 1400px;
-                margin: 0 auto;
-                background: rgba(255, 255, 255, 0.95);
-                border-radius: 20px;
-                padding: 40px;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-                backdrop-filter: blur(10px);
+            .player-container {
+                background: white;
+                padding: 2rem;
+                border-radius: 1rem;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                max-width: 400px;
+                width: 90%;
             }
 
             h1 {
+                margin: 0 0 1.5rem 0;
+                color: #333;
                 text-align: center;
-                color: #a80606;
-                margin-bottom: 10px;
-                font-size: 2.5em;
-                background: linear-gradient(135deg, #730405, #eb2055);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-            }
-
-            .subtitle {
-                text-align: center;
-                color: #718096;
-                margin-bottom: 40px;
-                font-size: 1.1em;
-            }
-
-            .top-container {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                gap: 20px;
-                margin-bottom: 40px;
-            }
-
-            .top-card {
-                background: white;
-                border-radius: 15px;
-                padding: 100px;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-                transition: all 0.3s ease;
-                border: 2px solid transparent;
-                position: relative;
-                overflow: hidden;
-            }
-
-            .top-card::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 6px;
-                background: linear-gradient(90deg, #730405, #eb2055);
-                transform: scaleX(0);
-                transition: transform 0.3s ease;
-            }
-
-            .top-card:hover::before {
-                transform: scaleX(1);
-            }
-
-            .top-card:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-                border-color: #eb2055;
-            }
-
-            .top-container {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                gap: 20px;
-                margin-bottom: 40px;
-            }
-
-            .middle-card {
-                background: white;
-                border-radius: 15px;
-                padding: 25px;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-                transition: all 0.3s ease;
-                border: 2px solid transparent;
-                position: relative;
-                overflow: hidden;
-            }
-
-            .phase-number {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 35px;
-                height: 35px;
-                background: linear-gradient(135deg, #667eea, #764ba2);
-                color: white;
-                border-radius: 50%;
-                font-weight: bold;
-                margin-bottom: 15px;
-                font-size: 1.1em;
-            }
-
-            .top-card-title {
-                color: #2d3748;
-                font-size: 1.2em;
-                font-weight: 600;
-                margin-bottom: 10px;
-                line-height: 1.3;
-            }
-
-            .bottom-card-badge {
-                display: inline-block;
-                padding: 6px 12px;
-                border-radius: 20px;
-                font-size: 0.85em;
-                font-weight: 500;
-                margin: 5px 5px 5px 0;
-                transition: all 0.2s ease;
-            }
-
-            .scope-1 {
-                background: linear-gradient(135deg, #f093fb, #f5576c);
-                color: white;
-            }
-
-            .scope-2 {
-                background: linear-gradient(135deg, #4facfe, #00f2fe);
-                color: white;
-            }
-
-            .scope-3 {
-                background: linear-gradient(135deg, #43e97b, #38f9d7);
-                color: white;
-            }
-
-            .category-text {
-                color: #4a5568;
-                font-size: 0.9em;
-                margin-top: 10px;
-                line-height: 1.5;
-            }
-
-            .bottom-container {
-                background: white;
-                border-radius: 15px;
-                padding: 25px;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-                margin-top: 30px;
-            }
-
-            .bottom-container-title {
-                color: #2d3748;
-                font-size: 1.3em;
-                font-weight: 600;
-                margin-bottom: 15px;
-            }
-
-            .bottom-container-items {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 20px;
-            }
-
-            .bottom-container-item {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-
-            .video-play-button {
-                position: absolute;
-                z-index: 10;
-                top: 50%;
-                left: 50%;
-                transform: translateX(-50%) translateY(-50%);
-                box-sizing: content-box;
-                display: block;
-                width: 32px;
-                height: 44px;
-                /* background: #eb2055; */
-                border-radius: 50%;
-                padding: 18px 20px 18px 28px;
-            }
-
-            .video-play-button:before {
-                content: "";
-                position: absolute;
-                z-index: 0;
-                left: 50%;
-                top: 50%;
-                transform: translateX(-50%) translateY(-50%);
-                display: block;
-                width: 55px;
-                height: 55px;
-                background: #eb2055;
-                border-radius: 50%;
-                animation: pulse-border 1100ms ease-out infinite;
-            }
-
-            .video-play-button:after {
-                content: "";
-                position: absolute;
-                z-index: 1;
-                left: 50%;
-                top: 50%;
-                transform: translateX(-50%) translateY(-50%);
-                display: block;
-                width: 60px;
-                height: 60px;
-                background: #eb2055;
-                border-radius: 50%;
-                transition: all 200ms;
-            }
-
-            .video-play-button span {
-                display: block;
-                position: relative;
-                z-index: 3;
-                width: 0;
-                height: 0;
-                border-left: 19px solid #fff;
-                border-top: 12px solid transparent;
-                border-bottom: 12px solid transparent;
-                top: 10px;
-                left: 5px;
-            }
-
-            /* --- Custom Audio Player Styles --- */
-
-            .audio-player-wrapper {
-                width: 100%;
             }
 
             audio {
                 width: 100%;
-                filter: invert(1) sepia(1) saturate(0.5) hue-rotate(180deg);
+                margin-bottom: 1rem;
             }
 
-            audio::-webkit-media-controls-panel {
-                background-color: var(--card-color);
+            .info {
+                text-align: center;
+                color: #666;
+                font-size: 0.9rem;
             }
 
-            audio::-webkit-media-controls-play-button,
-            audio::-webkit-media-controls-mute-button {
-                background-color: var(--accent-color);
-                border-radius: 50%;
+            .title {
+                text-align: center;
+                color: #333;
+                font-size: 1.5rem;
             }
 
-            audio::-webkit-media-controls-timeline {
-                background-color: #535353;
-                border-radius: 25px;
-                margin-left: 10px;
-                margin-right: 10px;
+            .subtitle {
+                text-align: center;
+                color: #333;
+                font-size: 0.9rem;
             }
 
-            audio::-webkit-media-controls-current-time-display,
-            audio::-webkit-media-controls-time-remaining-display {
-                color: var(--secondary-text-color);
+            .status {
+                padding: 0.5rem;
+                margin-top: 1rem;
+                border-radius: 0.5rem;
+                background: #f0f0f0;
+                font-size: 0.85rem;
+                color: #555;
             }
 
-            /* --- Track Info --- */
-
-            .track-info h2 {
-                font-size: 1.4rem;
-                font-weight: 600;
-                margin: 0 0 4px 0;
-                color: var(--primary-text-color);
-                /* Prevent long titles from breaking the layout */
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .track-info p {
-                font-size: 1rem;
-                font-weight: 400;
-                margin: 0 0 24px 0;
-                color: var(--secondary-text-color);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            @keyframes pulse-border {
-                0% {
-                    transform: translateX(-50%) translateY(-50%) translateZ(0)
-                        scale(1);
-                    opacity: 1;
-                }
-                100% {
-                    transform: translateX(-50%) translateY(-50%) translateZ(0)
-                        scale(1.5);
-                    opacity: 0;
-                }
-            }
-
-            @media (max-width: 768px) {
-                .container {
-                    padding: 20px;
-                }
-
-                h1 {
-                    font-size: 1.8em;
-                }
-
-                .lifecycle-container {
-                    grid-template-columns: 1fr;
-                }
+            .loading {
+                background: #fff3cd;
+                color: #856404;
             }
         </style>
     </head>
     <body>
-        <div class="container">
-            <h1>radio paje, oñiña-me'e</h1>
+        <div>
+            <h1 class="title">radio paje, oñiña-me'e</h1>
             <p class="subtitle">...sons dos que se foram...</p>
 
-            <div class="top-container">
-                <div class="top-card">
-                    <div class="player-container">
-                        <div class="audio-player-wrapper">
-                            <audio id="audio-player" controls>
-                                <source src="http://localhost:8080/stream" />
-                            </audio>
-                        </div>
-                    </div>
+            <div class="player-container">
+                <h1>🎵 Radio Paje 🎵</h1>
+                <audio id="audioPlayer" controls autoplay></audio>
+                <div class="info">
+                    <p id="currentTrack">Loading...</p>
                 </div>
+                <div id="status" class="status">Ready to play</div>
             </div>
-            <div class="middle-container">
-                <div class="middle-card">
-                    <div class="track-info">
-                        <h2 id="now-playing-title">Connecting...</h2>
-                        <p id="now-playing-artist">Please wait</p>
+            <div>
+                <h1>direme produções</h3>
+                <div>
+                    <div>
+                        <h3>direme at radio-paje.com.br</h3>
                     </div>
-                    <div id="chat-box">
-                        <div id="messages"></div>
-                        <input
-                            type="text"
-                            id="input"
-                            placeholder="Type a message..."
-                            autofocus
-                        />
-                    </div>
-                </div>
-            </div>
-            <div class="bottom-container">
-                <h3 class="bottom-container-title">direme produções</h3>
-                <div class="bottom-container-items">
-                    <div class="bottom-container-item">
-                        <span class="bottom-card-badge scope-1">Contato</span>
-                        <span>direme at radio-paje.com.br</span>
-                    </div>
-                    <!-- <div class="bottom-container-item">
-                    <span class="bottom-card-badge scope-2">Scope 2</span>
-                    <span>Indirect emissions from purchased electricity</span>
-                </div>
-                <div class="bottom-container-item">
-                    <span class="bottom-card-badge scope-3">Scope 3</span>
-                    <span>All other indirect emissions in the value chain</span>
-                </div> -->
                 </div>
             </div>
         </div>
 
         <script>
-            // Add animation on scroll
-            const cards = document.querySelectorAll(".top-card");
-            const observer = new IntersectionObserver(
-                (entries) => {
-                    entries.forEach((entry, index) => {
-                        if (entry.isIntersecting) {
-                            setTimeout(() => {
-                                entry.target.style.opacity = "0";
-                                entry.target.style.transform =
-                                    "translateY(20px)";
-                                entry.target.style.transition = "all 0.5s ease";
+            const audio = document.getElementById("audioPlayer");
+            const statusDiv = document.getElementById("status");
+            const trackInfo = document.getElementById("currentTrack");
 
-                                setTimeout(() => {
-                                    entry.target.style.opacity = "1";
-                                    entry.target.style.transform =
-                                        "translateY(0)";
-                                }, 100);
-                            }, index * 100);
-                        }
-                    });
-                },
-                { threshold: 0.1 },
-            );
+            function updateStatus(message, isLoading = false) {
+                statusDiv.textContent = message;
+                statusDiv.className = "status" + (isLoading ? " loading" : "");
+            }
 
-            cards.forEach((card) => {
-                observer.observe(card);
-            });
-
-            // Add WebSocket functionality
-            const ws = new WebSocket("ws://127.0.0.1:8080/echo");
-            const messages = document.getElementById("messages");
-            const input = document.getElementById("input");
-            ws.onmessage = (event) => {
-                const messageDiv = document.createElement("div");
-                messageDiv.className = "message";
-                messageDiv.textContent = event.data;
-                messages.appendChild(messageDiv);
-                messages.scrollTop = messages.scrollHeight;
-            };
-            input.addEventListener("keypress", (e) => {
-                if (e.key === "Enter" && input.value) {
-                    ws.send(input.value);
-                    input.value = "";
+            function extractFilename(url) {
+                const match = url.match(/file=([^&]+)/);
+                if (match) {
+                    return decodeURIComponent(match[1]);
                 }
-            });
+                return "Unknown";
+            }
 
-            document.addEventListener("DOMContentLoaded", () => {
-                const player = document.getElementById("audio-player");
+            function loadNextTrack() {
+                updateStatus("Loading next track...", true);
 
-                document.body.addEventListener("click", () => {
-                    if (player.paused) {
-                        player.play().catch((err) => {
-                            console.warn("Playback failed:", err);
-                        });
-                    }
+                // Add timestamp to prevent caching
+                const timestamp = Date.now();
+                const streamUrl = `/stream?t=${timestamp}`;
+
+                // Update audio source
+                audio.src = streamUrl;
+                audio.load();
+
+                // Try to play (might fail due to autoplay policies)
+                audio.play().catch((err) => {
+                    console.error("Autoplay failed:", err);
+                    updateStatus("Click play to continue");
                 });
+            }
+
+            // When track metadata is loaded
+            audio.addEventListener("loadedmetadata", () => {
+                const filename = extractFilename(audio.src);
+                trackInfo.textContent = `Now playing: ${filename}`;
+                updateStatus("Playing...");
             });
+
+            // When track ends, load the next one
+            audio.addEventListener("ended", () => {
+                updateStatus("Track ended, loading next...", true);
+                loadNextTrack();
+            });
+
+            // Error handling
+            audio.addEventListener("error", (e) => {
+                console.error("Audio error:", e);
+                updateStatus("Error loading track. Retrying in 3s...");
+                setTimeout(loadNextTrack, 3000);
+            });
+
+            // When track starts playing
+            audio.addEventListener("playing", () => {
+                const filename = extractFilename(audio.src);
+                trackInfo.textContent = `Now playing: ${filename}`;
+                updateStatus("Playing...");
+            });
+
+            // Initial load
+            loadNextTrack();
         </script>
     </body>
 </html>
