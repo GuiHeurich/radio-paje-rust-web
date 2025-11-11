@@ -1,5 +1,2 @@
 # Generated files
 /target/
-
-# AWS credentials
-/.aws/
