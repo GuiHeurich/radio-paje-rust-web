@@ -31,20 +31,7 @@ pub async fn authenticate() -> Result<AuthResponse, Box<dyn Error>> {
         actix_web::error::ErrorInternalServerError("Auth parse error")
     })?;
 
-    // let stripped_token = rem_last(&auth_response.authorization_token);
-
-    // let formatted_response: AuthResponse = AuthResponse {
-    //     api_url: auth_response.api_url,
-    //     authorization_token: stripped_token.to_string(),
-    // };
-
     log::info!("Auth response: {:?}", auth_response);
 
     Ok(auth_response)
-}
-
-fn rem_last(value: &str) -> &str {
-    let mut chars = value.chars();
-    chars.next_back();
-    chars.as_str()
 }
