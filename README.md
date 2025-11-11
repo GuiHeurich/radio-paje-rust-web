@@ -1,3 +1,5 @@
+[![Rust](https://github.com/GuiHeurich/radio-paje-rust-web/actions/workflows/rust.yml/badge.svg)](https://github.com/GuiHeurich/radio-paje-rust-web/actions/workflows/rust.yml)
+
 # Radio Paje Rust Web
 
 ## Overview
