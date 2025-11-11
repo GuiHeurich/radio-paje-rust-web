@@ -3,10 +3,10 @@ use actix_web::{App, Error, HttpRequest, HttpResponse, HttpServer, Responder, rt
 use askama::Template;
 use mime_guess::from_path;
 use std::collections::HashMap;
-use std::io::Write;
+use std::collections::VecDeque;
+use std::fs;
 use std::path::PathBuf;
-use std::str::FromStr;
-use tempfile::NamedTempFile;
+use std::sync::{Arc, Mutex};
 
 mod auth;
 mod handler;
@@ -15,6 +15,12 @@ mod listing;
 #[derive(Template)]
 #[template(path = "index.html")]
 struct Index;
+
+#[derive(Clone, Debug)]
+struct PlaybackState {
+    is_playing: bool,
+    queue: VecDeque<String>,
+}
 
 async fn index(
     _query: web::Query<HashMap<String, String>>,
@@ -34,66 +40,106 @@ async fn echo_heartbeat_ws(req: HttpRequest, stream: web::Payload) -> Result<Htt
     Ok(res)
 }
 
-async fn stream_audio() -> Result<NamedFile, Error> {
-    log::info!("Streaming audio");
-
+async fn stream_audio(
+    req: HttpRequest,
+    query: web::Query<HashMap<String, String>>,
+    _playback: web::Data<Arc<Mutex<PlaybackState>>>,
+) -> Result<HttpResponse, Error> {
     let bucket_id = std::env::var("B2_BUCKET_ID").map_err(|e| {
         log::error!("Missing B2_BUCKET_ID: {}", e);
         actix_web::error::ErrorInternalServerError("Missing B2_BUCKET_ID")
     })?;
 
-    log::info!("Fetched bucket {}", bucket_id);
+    // Check if a specific file is requested via query parameter
+    let file_name = if let Some(requested_file) = query.get("file") {
+        log::info!("Serving requested file: {}", requested_file);
+        requested_file.clone()
+    } else {
+        // Only select a random file if no file is specified
+        log::info!("Fetched bucket {}", bucket_id);
 
-    let auth = auth::authenticate().await.map_err(|e| {
-        log::error!("Authentication failed: {}", e);
-        actix_web::error::ErrorInternalServerError("Auth failed")
-    })?;
-
-    let file_name = listing::select_random_file(&auth, &bucket_id)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to select random file: {}", e);
-            actix_web::error::ErrorInternalServerError("Failed to select random file")
+        let auth = auth::authenticate().await.map_err(|e| {
+            log::error!("Authentication failed: {}", e);
+            actix_web::error::ErrorInternalServerError("Auth failed")
         })?;
 
-    log::info!("Fetched file {}", file_name);
+        let random_file = listing::select_random_file(&auth, &bucket_id)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to select random file: {}", e);
+                actix_web::error::ErrorInternalServerError("Failed to select random file")
+            })?;
 
-    let download_url = format!("{}/file/radio-paje-music/{}", auth.api_url, file_name);
+        log::info!("Selected random file: {}", random_file);
 
-    log::info!("Downloading file from {}", download_url);
+        // Redirect to the same endpoint with the file parameter
+        // URL encode the filename to handle special characters
+        let encoded_file = random_file
+            .replace("%", "%25")
+            .replace(" ", "%20")
+            .replace("?", "%3F")
+            .replace("#", "%23");
 
-    let bytes = reqwest::Client::new()
-        .get(&download_url)
-        // .bearer_auth(&auth.authorization_token)
-        .send()
-        .await
-        .map_err(actix_web::error::ErrorInternalServerError)?
-        .bytes()
-        .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
+        return Ok(HttpResponse::Found()
+            .append_header(("Location", format!("/stream?file={}", encoded_file)))
+            .finish());
+    };
 
-    log::info!("Downloaded {} bytes", bytes.len());
+    log::info!("Fetching file: {}", file_name);
 
-    let mut temp_file = NamedTempFile::new().map_err(actix_web::error::ErrorInternalServerError)?;
-    temp_file
-        .write_all(&bytes)
-        .map_err(actix_web::error::ErrorInternalServerError)?;
+    // Check cache first
+    let cache_dir = PathBuf::from("/tmp/radio-paje-cache");
+    fs::create_dir_all(&cache_dir)?;
 
-    log::info!("Downloaded file to {}", temp_file.path().display());
-    log::info!(
-        "Downloaded file size: {}",
-        temp_file
-            .as_file()
-            .metadata()
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    file_name.hash(&mut hasher);
+    let hash = hasher.finish();
+    let unique_name = format!("{}_{}", hash, file_name);
+    let file_path = cache_dir.join(&unique_name);
+
+    // Download if not cached
+    if !file_path.exists() {
+        let auth = auth::authenticate().await.map_err(|e| {
+            log::error!("Authentication failed: {}", e);
+            actix_web::error::ErrorInternalServerError("Auth failed")
+        })?;
+
+        let download_url = format!("{}/file/radio-paje-music/{}", auth.api_url, file_name);
+        log::info!("Downloading file from {}", download_url);
+
+        let bytes = reqwest::Client::new()
+            .get(&download_url)
+            .send()
+            .await
             .map_err(actix_web::error::ErrorInternalServerError)?
-            .len()
-    );
+            .bytes()
+            .await
+            .map_err(actix_web::error::ErrorInternalServerError)?;
 
-    let file_path: PathBuf = temp_file.into_temp_path().keep().unwrap();
-    let mime_type = from_path(&file_path).first_or_octet_stream();
-    let file = NamedFile::open(file_path)?;
+        log::info!("Downloaded {} bytes", bytes.len());
 
-    Ok(file.set_content_type(mime_type))
+        fs::write(&file_path, &bytes)?;
+        log::info!("Cached file to {}", file_path.display());
+    } else {
+        log::info!("Using cached file at {}", file_path.display());
+    }
+
+    // Detect MIME type from filename
+    let mime_type = from_path(&file_name).first_or_octet_stream();
+
+    // Log the request details
+    let range_header = req.headers().get("range");
+    log::info!("Range header: {:?}", range_header);
+    log::info!("File size: {} bytes", file_path.metadata()?.len());
+
+    // Use NamedFile which handles range requests automatically
+    let file = NamedFile::open(&file_path)?
+        .set_content_type(mime_type)
+        .disable_content_disposition();
+
+    Ok(file.into_response(&req))
 }
 
 #[actix_web::main] // or #[tokio::main]
@@ -101,8 +147,14 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     log::info!("Starting server");
 
-    HttpServer::new(|| {
+    let playback_state = Arc::new(Mutex::new(PlaybackState {
+        is_playing: false,
+        queue: VecDeque::new(),
+    }));
+
+    HttpServer::new(move || {
         App::new()
+            .app_data(web::Data::new(playback_state.clone()))
             .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/echo").route(web::get().to(echo_heartbeat_ws)))
             .service(web::resource("/stream").route(web::get().to(stream_audio)))
